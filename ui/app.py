@@ -7,13 +7,13 @@ import os
 import tempfile
 import json
 import hashlib
+import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Dict
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from streamlit_js_eval import streamlit_js_eval
 
 from matching_engine import ResumeJDMatcher
 from utils import config, LoggerManager, get_logger
@@ -245,15 +245,11 @@ def inject_theme():
                 width: 80px;
                 height: 80px;
                 margin: 0 auto 2rem;
-                border: 4px solid var(--border);
+                border: 4px solid rgba(0, 212, 255, 0.15);
                 border-top: 4px solid var(--accent);
                 border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-            
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
+                animation: smoothSpin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
             }
             
             /* Tab loading animation */
@@ -264,20 +260,83 @@ def inject_theme():
                 padding: 4rem 2rem;
                 flex-direction: column;
                 gap: 1.5rem;
+                animation: fadeIn 0.3s ease-out;
             }
             
             .tab-loading-spinner {
                 width: 50px;
                 height: 50px;
-                border: 3px solid var(--border);
+                border: 3px solid rgba(0, 212, 255, 0.15);
                 border-top: 3px solid var(--accent);
                 border-radius: 50%;
-                animation: spin 0.8s linear infinite;
+                animation: smoothSpin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             }
             
             .tab-loading-text {
                 color: var(--text-muted);
                 font-size: 14px;
+                animation: pulse 2s ease-in-out infinite;
+            }
+            
+            /* System initialization overlay - BLOCKS everything */
+            .init-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: radial-gradient(ellipse at center, #0f1628 0%, #0a0e1a 50%, #050810 100%);
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                gap: 2rem;
+                animation: fadeIn 0.3s ease-out;
+            }
+            
+            .init-spinner {
+                width: 70px;
+                height: 70px;
+                border: 4px solid rgba(0, 212, 255, 0.15);
+                border-top: 4px solid var(--accent);
+                border-radius: 50%;
+                animation: smoothSpin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+            }
+            
+            .init-text {
+                color: var(--text);
+                font-size: 18px;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+                animation: pulse 2s ease-in-out infinite;
+            }
+            
+            .init-subtext {
+                color: var(--text-muted);
+                font-size: 13px;
+                margin-top: -1rem;
+            }
+            
+            @keyframes smoothSpin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            @keyframes fadeIn {
+                0% { opacity: 0; }
+                100% { opacity: 1; }
+            }
+            
+            @keyframes fadeOut {
+                0% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 0.7; }
+                50% { opacity: 1; }
             }
             
             /* Auth loading animation */
@@ -293,6 +352,7 @@ def inject_theme():
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                animation: fadeIn 0.3s ease-out;
             }
             
             .auth-loading-content {
@@ -302,16 +362,22 @@ def inject_theme():
                 border: 1px solid var(--border);
                 border-radius: 16px;
                 min-width: 300px;
+                animation: slideUp 0.4s ease-out;
+            }
+            
+            @keyframes slideUp {
+                0% { opacity: 0; transform: translateY(20px); }
+                100% { opacity: 1; transform: translateY(0); }
             }
             
             .auth-loading-spinner {
                 width: 60px;
                 height: 60px;
                 margin: 0 auto 1.5rem;
-                border: 3px solid var(--border);
+                border: 3px solid rgba(0, 212, 255, 0.15);
                 border-top: 3px solid var(--accent);
                 border-radius: 50%;
-                animation: spin 0.8s linear infinite;
+                animation: smoothSpin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             }
             
             .auth-loading-text {
@@ -504,18 +570,48 @@ def inject_theme():
             /* Hide Streamlit elements */
             #MainMenu { visibility: hidden; }
             footer { visibility: hidden; }
-            header { visibility: hidden; }
         </style>
         """,
         unsafe_allow_html=True
     )
 
 
+def render_initialization_overlay():
+    """Render full-screen initialization overlay."""
+    st.markdown(
+        '''
+        <div class="init-overlay">
+            <div class="init-spinner"></div>
+            <div class="init-text">Initializing System</div>
+            <div class="init-subtext">Loading AI models and preparing environment...</div>
+        </div>
+        ''',
+        unsafe_allow_html=True
+    )
+
+
 def initialize_session_state():
     """Initialize session state variables."""
+    # Track if system is initializing
+    if 'system_initialized' not in st.session_state:
+        st.session_state.system_initialized = False
+    
+    # Critical: Initialize authentication state FIRST
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    
+    if 'username' not in st.session_state:
+        st.session_state.username = None
+    
+    if 'session_restored' not in st.session_state:
+        st.session_state.session_restored = False
+    
+    if 'logout_triggered' not in st.session_state:
+        st.session_state.logout_triggered = False
+    
+    # Matcher will be initialized separately after overlay is shown
     if 'matcher' not in st.session_state:
-        with st.spinner('Initializing system... This may take a moment.'):
-            st.session_state.matcher = ResumeJDMatcher()
+        st.session_state.matcher = None
     
     if 'results' not in st.session_state:
         st.session_state.results = None
@@ -525,9 +621,6 @@ def initialize_session_state():
     
     if 'uploaded_file_objects' not in st.session_state:
         st.session_state.uploaded_file_objects = {}
-
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
 
     if 'auth_accounts' not in st.session_state:
         st.session_state.auth_accounts = []
@@ -556,9 +649,6 @@ def initialize_session_state():
     if 'tab_loading' not in st.session_state:
         st.session_state.tab_loading = False
 
-    if 'logout_triggered' not in st.session_state:
-        st.session_state.logout_triggered = False
-
     if 'auth_loading' not in st.session_state:
         st.session_state.auth_loading = False
 
@@ -567,133 +657,215 @@ def initialize_session_state():
 
     if 'pending_auth' not in st.session_state:
         st.session_state.pending_auth = None
+    
+    if 'session_check_count' not in st.session_state:
+        st.session_state.session_check_count = 0
 
-    if 'session_restored' not in st.session_state:
-        st.session_state.session_restored = False
+    if 'auth_notice' not in st.session_state:
+        st.session_state.auth_notice = None
+    
+    if 'accounts_loaded' not in st.session_state:
+        st.session_state.accounts_loaded = False
+    
+    if 'js_call_counter' not in st.session_state:
+        st.session_state.js_call_counter = 0
 
 
 def hash_password(password: str) -> str:
+    """Hash password using SHA-256."""
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
 
-def load_accounts() -> list:
-    """Load accounts from browser localStorage; fallback to session cache."""
-    # Return cached if already loaded
-    if st.session_state.get('auth_accounts'):
+# File paths for persistent storage
+AUTH_DATA_DIR = Path(__file__).parent.parent / "data" / "auth"
+ACCOUNTS_FILE = AUTH_DATA_DIR / "accounts.json"
+SESSIONS_FILE = AUTH_DATA_DIR / "sessions.json"
+
+
+def _ensure_auth_dir():
+    """Ensure auth data directory exists."""
+    AUTH_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_accounts_from_file() -> list:
+    """Load accounts from persistent JSON file."""
+    _ensure_auth_dir()
+    try:
+        if ACCOUNTS_FILE.exists():
+            with open(ACCOUNTS_FILE, 'r') as f:
+                accounts = json.load(f)
+                if isinstance(accounts, list):
+                    return accounts
+    except Exception as e:
+        logger.debug(f"Could not load accounts from file: {e}")
+    return []
+
+
+def save_accounts_to_file(accounts: list) -> None:
+    """Save accounts to persistent JSON file."""
+    _ensure_auth_dir()
+    try:
+        with open(ACCOUNTS_FILE, 'w') as f:
+            json.dump(accounts, f, indent=2)
+    except Exception as e:
+        logger.debug(f"Could not save accounts to file: {e}")
+
+
+def load_sessions_from_file() -> dict:
+    """Load sessions from persistent JSON file."""
+    _ensure_auth_dir()
+    try:
+        if SESSIONS_FILE.exists():
+            with open(SESSIONS_FILE, 'r') as f:
+                sessions = json.load(f)
+                if isinstance(sessions, dict):
+                    return sessions
+    except Exception as e:
+        logger.debug(f"Could not load sessions from file: {e}")
+    return {}
+
+
+def save_sessions_to_file(sessions: dict) -> None:
+    """Save sessions to persistent JSON file."""
+    _ensure_auth_dir()
+    try:
+        with open(SESSIONS_FILE, 'w') as f:
+            json.dump(sessions, f, indent=2)
+    except Exception as e:
+        logger.debug(f"Could not save sessions to file: {e}")
+
+
+def get_browser_session_id(generate_if_missing: bool = True) -> str:
+    """Get a unique session ID for this browser session.
+    
+    Args:
+        generate_if_missing: If True, generates a new session ID if none exists.
+                            If False, returns None when no session ID is found.
+    """
+    # Use query params to maintain session across refreshes
+    params = st.query_params
+    session_id = params.get("sid", None)
+    
+    if not session_id and generate_if_missing:
+        # Generate new session ID only if explicitly requested
+        session_id = hashlib.md5(f"{time.time()}{os.urandom(16).hex()}".encode()).hexdigest()[:16]
+        st.query_params["sid"] = session_id
+    
+    return session_id
+
+
+def load_accounts_from_localstorage(force_reload: bool = False) -> list:
+    """Load accounts - uses file-based storage."""
+    if not force_reload and st.session_state.accounts_loaded:
         return st.session_state.auth_accounts
     
-    # Best-effort read; fallback to session if component not available
-    try:
-        data = streamlit_js_eval(
-            js_expressions="JSON.parse(localStorage.getItem('skills_auth') || '[]')",
-            key="load_accounts_static",
-            default=[],
-        )
-        if isinstance(data, list):
-            st.session_state.auth_accounts = data
-            return data
-    except Exception:
-        pass
-    return st.session_state.get('auth_accounts', [])
-
-
-def persist_session(user: str, password_hash: str) -> None:
-    """Persist the current logged-in session to localStorage."""
-    try:
-        import time
-        timestamp = str(int(time.time() * 1000))
-        
-        streamlit_js_eval(
-            js_expressions=f"localStorage.setItem('skills_auth_session', JSON.stringify({json.dumps({'u': user, 'p': password_hash})}))",
-            key=f"save_session_{timestamp}",
-        )
-        # Set logged_in flag to true
-        streamlit_js_eval(
-            js_expressions="localStorage.setItem('logged_in', 'true')",
-            key=f"set_logged_in_{timestamp}",
-        )
-    except Exception:
-        pass
-
-
-def clear_persisted_session() -> None:
-    """Remove the persisted session from localStorage."""
-    try:
-        import time
-        timestamp = str(int(time.time() * 1000))
-        
-        streamlit_js_eval(
-            js_expressions="localStorage.removeItem('skills_auth_session')",
-            key=f"clear_session_{timestamp}",
-        )
-        # Set logged_in flag to false
-        streamlit_js_eval(
-            js_expressions="localStorage.setItem('logged_in', 'false')",
-            key=f"set_logged_out_{timestamp}",
-        )
-    except Exception:
-        pass
-
-
-def restore_session_if_available() -> None:
-    """Restore login state from localStorage if valid credentials exist."""
-    # Don't restore if user just logged out, already authenticated, or already tried
-    if (st.session_state.get('authenticated', False) or 
-        st.session_state.get('logout_triggered', False) or
-        st.session_state.get('session_restored', False)):
-        return
-
-    # Mark as attempted to prevent infinite loop
-    st.session_state.session_restored = True
-
-    # Ensure accounts are loaded for validation
-    accounts = st.session_state.get('auth_accounts', []) or load_accounts()
-
-    try:
-        # Check logged_in flag first (static key)
-        logged_in = streamlit_js_eval(
-            js_expressions="localStorage.getItem('logged_in')",
-            key="check_logged_in_static",
-            default="false",
-        )
-        
-        if logged_in == "true":
-            data = streamlit_js_eval(
-                js_expressions="JSON.parse(localStorage.getItem('skills_auth_session') || 'null')",
-                key="load_session_static",
-                default=None,
-            )
-            if isinstance(data, dict):
-                u = data.get('u')
-                p = data.get('p')
-                match = next((acct for acct in accounts if acct.get('u') == u and acct.get('p') == p), None)
-                if match:
-                    st.session_state.authenticated = True
-                    st.session_state.username = u
-                    st.session_state.auth_accounts = accounts
-    except Exception:
-        pass
-
-
-def save_accounts(accounts: list) -> None:
-    """Persist accounts to localStorage and cache in session."""
-    try:
-        import time
-        timestamp = str(int(time.time() * 1000))
-        
-        streamlit_js_eval(
-            js_expressions=f"localStorage.setItem('skills_auth', JSON.stringify({json.dumps(accounts)}))",
-            key=f"save_accounts_{timestamp}",
-        )
-    except Exception:
-        pass
+    accounts = load_accounts_from_file()
     st.session_state.auth_accounts = accounts
+    st.session_state.accounts_loaded = True
+    return accounts
+
+
+def save_accounts_to_localstorage(accounts: list) -> None:
+    """Save accounts - uses file-based storage."""
+    st.session_state.auth_accounts = accounts
+    st.session_state.accounts_loaded = True
+    save_accounts_to_file(accounts)
+
+
+def check_existing_session() -> tuple:
+    """Check for existing session using browser session ID."""
+    # First check memory
+    if st.session_state.authenticated and st.session_state.username:
+        return True, st.session_state.username
+    
+    # Check file-based sessions - don't generate new ID, just check existing
+    session_id = get_browser_session_id(generate_if_missing=False)
+    
+    if not session_id:
+        return False, None
+    
+    sessions = load_sessions_from_file()
+    
+    if session_id in sessions:
+        session_data = sessions[session_id]
+        username = session_data.get('username')
+        session_hash = session_data.get('session_hash')
+        
+        # Verify session is still valid (check against accounts)
+        accounts = load_accounts_from_localstorage()
+        for account in accounts:
+            if account.get('username') == username:
+                expected_hash = hash_password(username + account.get('password_hash', ''))
+                if session_hash == expected_hash:
+                    return True, username
+        
+        # Session invalid, remove it
+        del sessions[session_id]
+        save_sessions_to_file(sessions)
+    
+    return False, None
+
+
+def create_session(username: str, password_hash: str) -> None:
+    """Create a new persistent session."""
+    # Update memory
+    st.session_state.authenticated = True
+    st.session_state.username = username
+    
+    # Save to file
+    session_id = get_browser_session_id()
+    session_hash = hash_password(username + password_hash)
+    
+    sessions = load_sessions_from_file()
+    sessions[session_id] = {
+        'username': username,
+        'session_hash': session_hash,
+        'created_at': pd.Timestamp.now().isoformat()
+    }
+    save_sessions_to_file(sessions)
+    
+    logger.info(f"Session created for user: {username}")
+
+
+def clear_session() -> None:
+    """Clear session from memory and file."""
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    
+    # Remove from file
+    session_id = get_browser_session_id()
+    sessions = load_sessions_from_file()
+    if session_id in sessions:
+        del sessions[session_id]
+        save_sessions_to_file(sessions)
+    
+    # Clear the session ID from query params to get a new one on next login
+    if "sid" in st.query_params:
+        del st.query_params["sid"]
+    
+    logger.info("Session cleared")
+
+
+def restore_session():
+    """Restore session from file-based storage if available."""
+    if st.session_state.session_restored:
+        return
+    
+    st.session_state.session_restored = True
+    
+    # Check for existing session in file storage
+    has_session, username = check_existing_session()
+    
+    if has_session and username:
+        st.session_state.authenticated = True
+        st.session_state.username = username
+        logger.info(f"Session restored for user: {username}")
 
 
 def render_sidebar():
     """Render sidebar with navigation."""
     with st.sidebar:
-        st.markdown('<div class="sidebar-brand">🚀 Skills Console</div>', unsafe_allow_html=True)
+        # st.markdown('<div class="sidebar-brand"></div>', unsafe_allow_html=True)
         
         nav_options = [
             ("📤 Upload & Job Description", "Upload & Job Description"),
@@ -722,16 +894,34 @@ def render_sidebar():
         
         st.markdown("---")
         
-        st.markdown('<div class="logout-btn">', unsafe_allow_html=True)
-        if st.button("🚪 Logout", key="sidebar_logout", disabled=is_disabled):
-            # Show logout animation
-            st.session_state.auth_loading = True
-            st.session_state.auth_loading_message = "Logging out..."
-            try:
-                st.rerun()
-            except Exception:
-                st.experimental_rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Show username if logged in
+        if st.session_state.authenticated and st.session_state.username:
+            st.markdown(f"**👤 {st.session_state.username}**", unsafe_allow_html=True)
+            st.markdown('<div class="logout-btn">', unsafe_allow_html=True)
+            if st.button("🚪 Logout", key="sidebar_logout", disabled=is_disabled):
+                # Clear session
+                clear_session()
+                
+                # Reset other auth-related session state
+                st.session_state.logout_triggered = False
+                st.session_state.session_restored = False
+                st.session_state.auth_loading = False
+                st.session_state.auth_loading_message = ""
+                
+                # Clear other session states but keep matcher and accounts
+                st.session_state.results = None
+                st.session_state.processed_resumes = []
+                st.session_state.uploaded_files_data = None
+                st.session_state.jd_text_input = ""
+                st.session_state.active_nav = "Upload & Job Description"
+                st.session_state.auth_mode = "Login"
+                
+                # Rerun to show login page
+                try:
+                    st.rerun()
+                except Exception:
+                    st.experimental_rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_processing_flow():
@@ -791,30 +981,17 @@ def render_loading_overlay():
     )
 
 
-def render_auth_loading(message: str):
-    """Render auth loading animation overlay."""
-    st.markdown(
-        f'''
-        <div class="auth-loading">
-            <div class="auth-loading-content">
-                <div class="auth-loading-spinner"></div>
-                <div class="auth-loading-text">{message}</div>
-                <div class="auth-loading-subtext">Please wait...</div>
-            </div>
-        </div>
-        ''',
-        unsafe_allow_html=True
-    )
-
-
 def render_auth_gate():
     """Render login/register page before showing dashboard."""
-    # Reset logout flag and session restored flag when showing auth page
-    st.session_state.logout_triggered = False
-    st.session_state.session_restored = False
+    # Load accounts from localStorage
+    accounts = load_accounts_from_localstorage()
     
-    accounts = st.session_state.get('auth_accounts', []) or load_accounts()
-
+    # Surface any auth notices (e.g., after registration)
+    if st.session_state.get('auth_notice'):
+        st.info(st.session_state.auth_notice)
+        # Clear notice after showing once
+        st.session_state.auth_notice = None
+    
     # Center the login form
     col1, col2, col3 = st.columns([1, 1.5, 1])
     
@@ -824,7 +1001,7 @@ def render_auth_gate():
             """
             <div style="text-align: center; margin-bottom: 3rem;">
                 <h1 style="font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem;">
-                    Resume Intelligence Console
+                   Resume Parser and Ranker
                 </h1>
                 <p style="color: var(--text-muted); font-size: 1rem;">AI-powered resume analysis platform</p>
             </div>
@@ -832,11 +1009,10 @@ def render_auth_gate():
             unsafe_allow_html=True
         )
         
-        # st.markdown('<div class="auth-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Welcome</div>', unsafe_allow_html=True)
+        st.markdown('<p style="color: var(--text-muted); margin-bottom: 1.5rem;">Sign in or create an account</p>', unsafe_allow_html=True)
         
-        st.markdown('<div class="section-title">Welcome Back</div>', unsafe_allow_html=True)
-        st.markdown('<p style="color: var(--text-muted); margin-bottom: 1.5rem;">Sign in to access your dashboard</p>', unsafe_allow_html=True)
-        
+        # Auth mode toggle
         st.markdown('<div class="auth-toggle">', unsafe_allow_html=True)
         auth_mode = st.radio(
             "Mode",
@@ -847,133 +1023,180 @@ def render_auth_gate():
             key="auth_mode_radio"
         )
         st.session_state.auth_mode = auth_mode
-        # st.markdown('</div>', unsafe_allow_html=True)
-
-        if st.session_state.auth_mode == "Login":
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        if auth_mode == "Login":
+            # Login form
             username = st.text_input("Username", key="login_user", placeholder="Enter your username")
             password = st.text_input("Password", type="password", key="login_pass", placeholder="Enter your password")
-            if st.button("Login", type="primary"):
+            
+            if st.button("Login", type="primary", use_container_width=True):
                 if not username or not password:
-                    st.error("Enter username and password")
+                    st.error("Please enter both username and password")
                 else:
-                    hashed = hash_password(password)
-                    match = next((acct for acct in accounts if acct.get('u') == username and acct.get('p') == hashed), None)
-                    if match:
+                    password_hash = hash_password(password)
+                    
+                    # Check credentials
+                    user_found = False
+                    for account in accounts:
+                        if account.get('username') == username and account.get('password_hash') == password_hash:
+                            user_found = True
+                            break
+                    
+                    if user_found:
+                        # Create session
+                        create_session(username, password_hash)
+                        
+                        # Show loading animation
                         st.session_state.auth_loading = True
-                        st.session_state.auth_loading_message = "Logging in..."
-                        st.session_state.pending_auth = {'username': username, 'hashed': hashed}
+                        st.session_state.auth_loading_message = f"Welcome back, {username}!"
+                        st.session_state.session_restored = True
+                        st.session_state.logout_triggered = False
+                        
+                        # Rerun to show dashboard
                         try:
                             st.rerun()
                         except Exception:
                             st.experimental_rerun()
                     else:
-                        st.error("Invalid credentials")
+                        st.error("Invalid username or password. Please check your credentials or register a new account.")
+        
         else:
+            # Registration form
             new_user = st.text_input("Username", key="reg_user", placeholder="Choose a username")
             new_pass = st.text_input("Password", type="password", key="reg_pass", placeholder="Choose a password")
             confirm_pass = st.text_input("Confirm Password", type="password", key="reg_confirm", placeholder="Re-enter password")
-            if st.button("Create Account", type="primary"):
+            
+            if st.button("Create Account", type="primary", use_container_width=True):
                 if not new_user or not new_pass:
-                    st.error("Username and password required")
+                    st.error("Username and password are required")
                 elif new_pass != confirm_pass:
                     st.error("Passwords do not match")
-                elif any(acct.get('u') == new_user for acct in accounts):
+                elif any(account.get('username') == new_user for account in accounts):
                     st.error("Username already exists")
                 else:
-                    hashed = hash_password(new_pass)
-                    updated = accounts + [{"u": new_user, "p": hashed}]
-                    save_accounts(updated)
-                    # Show registration loading animation
-                    st.session_state.auth_loading = True
-                    st.session_state.auth_loading_message = "Creating account..."
-                    st.session_state.pending_auth = {'username': new_user, 'hashed': hashed}
+                    # Create new account
+                    password_hash = hash_password(new_pass)
+                    new_account = {
+                        'username': new_user,
+                        'password_hash': password_hash,
+                        'created_at': pd.Timestamp.now().isoformat()
+                    }
+                    
+                    # Save to localStorage
+                    accounts.append(new_account)
+                    save_accounts_to_localstorage(accounts)
+                    
+                    # Update cached accounts in session state to ensure login works
+                    st.session_state.auth_accounts = accounts
+                    
+                    logger.info(f"New account registered: {new_user}")
+                    
+                    # Do not auto-login; prompt user to login with new credentials
+                    st.session_state.auth_notice = f"Account '{new_user}' created successfully! Please log in with your credentials."
+                    st.session_state.auth_mode = "Login"
+                    
+                    # Rerun to refresh form state and show notice
                     try:
                         st.rerun()
                     except Exception:
                         st.experimental_rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def main():
     """Main application function."""
     inject_theme()
     initialize_session_state()
-    restore_session_if_available()
-
-    # Handle auth loading states (login/logout animations)
-    if st.session_state.get('auth_loading', False):
-        message = st.session_state.get('auth_loading_message', 'Processing...')
-        render_auth_loading(message)
+    
+    # FIRST: Try to restore session from file (before anything else)
+    # This ensures returning users with valid session URLs get authenticated immediately
+    if not st.session_state.session_restored:
+        restore_session()
+    
+    # Show initialization overlay and initialize matcher if not done
+    if not st.session_state.system_initialized:
+        # Show the initialization overlay
+        render_initialization_overlay()
         
-        import time
-        time.sleep(1.5)  # Show animation for 1.5 seconds
+        # Initialize the matcher (heavy operation)
+        if st.session_state.matcher is None:
+            st.session_state.matcher = ResumeJDMatcher()
         
-        # Check if this is a logout or login/register
-        if message == "Logging out...":
-            # Clear localStorage
-            clear_persisted_session()
-            
-            # Clear all session state
-            st.session_state.authenticated = False
-            st.session_state.username = None
-            st.session_state.logout_triggered = True
-            st.session_state.results = None
-            st.session_state.processed_resumes = []
-            st.session_state.uploaded_files_data = None
-            st.session_state.jd_text_input = ""
-            st.session_state.active_nav = "Upload & Job Description"
-            st.session_state.auth_loading = False
-            st.session_state.pending_auth = None
-        else:
-            # Handle login/register
-            if st.session_state.pending_auth:
-                username = st.session_state.pending_auth['username']
-                hashed = st.session_state.pending_auth['hashed']
-                st.session_state.authenticated = True
-                st.session_state.username = username
-                persist_session(username, hashed)
-                st.session_state.auth_loading = False
-                st.session_state.pending_auth = None
+        # Mark as initialized
+        st.session_state.system_initialized = True
         
+        # Small delay for smooth transition
+        time.sleep(0.5)
+        
+        # Rerun to remove overlay and show UI
         try:
             st.rerun()
         except Exception:
             st.experimental_rerun()
         return
-
-    if not st.session_state.get('authenticated', False):
+    
+    # Handle auth loading state
+    if st.session_state.get('auth_loading', False):
+        # Show loading animation
+        st.markdown(
+            f'''
+            <div class="auth-loading">
+                <div class="auth-loading-content">
+                    <div class="auth-loading-spinner"></div>
+                    <div class="auth-loading-text">{st.session_state.auth_loading_message}</div>
+                    <div class="auth-loading-subtext">Redirecting to dashboard...</div>
+                </div>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+        
+        # Small delay then clear loading state
+        time.sleep(1.5)
+        st.session_state.auth_loading = False
+        st.session_state.auth_loading_message = ""
+        
+        # Rerun to show dashboard
+        try:
+            st.rerun()
+        except Exception:
+            st.experimental_rerun()
+        return
+    
+    # Check authentication
+    if not st.session_state.authenticated:
         render_auth_gate()
         return
-
+    
+    # User is authenticated, show dashboard
     render_sidebar()
-
+    
     # Show loading overlay if processing
     if st.session_state.is_processing:
         render_loading_overlay()
-
+    
     # Header
     st.markdown(
-        """
+        f"""
         <div class="futuristic-panel">
-            <div class="pill">🤖 AI-Powered Matching</div>
-            <div class="section-title">Resume Skill Recognition & Matching</div>
-            <p style="color: var(--text-muted);">Upload resumes, paste job descriptions, and discover the best candidates using advanced AI.</p>
+            <div class="pill">Welcome HR</div>
+            <div class="section-title">Resume Skill Parsing & Matching</div>
+            <p style="color: var(--text-muted);">Welcome, {st.session_state.username}! Upload resumes, paste job descriptions, and discover the best candidates using advanced AI.</p>
         </div>
         """,
         unsafe_allow_html=True
     )
-
+    
     # Show results banner if available
     if st.session_state.results is not None and not st.session_state.is_processing:
         st.success(f"✅ Results ready! {len(st.session_state.results)} resume(s) analyzed. Navigate through tabs to explore.")
-
+    
     nav_choice = st.session_state.active_nav
-
+    
     # If processing flag is set, do the actual work
     if st.session_state.is_processing and st.session_state.uploaded_files_data and st.session_state.jd_text_input:
         do_actual_processing(st.session_state.uploaded_files_data, st.session_state.jd_text_input)
-
+    
     # Handle tab loading animation
     if st.session_state.tab_loading:
         st.markdown(
@@ -985,7 +1208,6 @@ def main():
             ''',
             unsafe_allow_html=True
         )
-        import time
         time.sleep(2)
         st.session_state.tab_loading = False
         try:
@@ -993,7 +1215,7 @@ def main():
         except Exception:
             st.experimental_rerun()
         return
-
+    
     if nav_choice == "Upload & Job Description":
         uploaded_files, jd_text, match_button = render_upload_tab()
         if match_button:
@@ -1033,6 +1255,10 @@ def process_matching(uploaded_files, jd_text):
         st.session_state.is_processing = True
         st.session_state.processing_step = "extract"
         st.session_state.processing_complete = False
+        
+        # Store data for processing
+        st.session_state.uploaded_files_data = uploaded_files
+        st.session_state.jd_text_input = jd_text
         
         # Force rerun to show overlay
         try:
@@ -1105,9 +1331,9 @@ def do_actual_processing(uploaded_files, jd_text):
 def render_upload_tab():
     """Tab 1: Upload resumes and provide job description."""
     st.subheader("Upload & Job Description")
-
+    
     col1, col2 = st.columns([1, 1])
-
+    
     with col1:
         uploaded_files = st.file_uploader(
             "Choose resume files (PDF/DOCX)",
@@ -1129,7 +1355,7 @@ def render_upload_tab():
             with st.expander("View uploaded files"):
                 for file in st.session_state.uploaded_files_data:
                     st.text(f"• {file.name}")
-
+    
     with col2:
         jd_text = st.text_area(
             "Paste job description",
@@ -1143,29 +1369,29 @@ def render_upload_tab():
             st.session_state.jd_text_input = jd_text
         
         st.caption("Tip: Include must-have and nice-to-have skills for better matching.")
-
+    
     # Use stored values if current widgets are empty
     files_to_use = uploaded_files if uploaded_files else st.session_state.uploaded_files_data
     jd_to_use = jd_text if jd_text else st.session_state.jd_text_input
-
+    
     match_button = st.button(
         "🚀 Match Resumes",
         type="primary",
-        width="stretch",
+        use_container_width=True,
         disabled=(not files_to_use or not jd_to_use)
     )
-
+    
     return files_to_use, jd_to_use, match_button
 
 
 def render_extraction_preview(results_df: pd.DataFrame):
     """Tab 2: Extraction preview and basic stats."""
     st.subheader("Extraction Preview")
-
+    
     if results_df.empty:
         st.warning("No results to display")
         return
-
+    
     with st.expander("View extraction details", expanded=True):
         for _, row in results_df.iterrows():
             resume_name = Path(row['resume_file']).name
@@ -1189,11 +1415,11 @@ def render_extraction_preview(results_df: pd.DataFrame):
 def render_skill_extraction(results_df: pd.DataFrame):
     """Tab 3: Skill extraction grouped and separated matched vs missing."""
     st.subheader("Skill Extraction")
-
+    
     if results_df.empty:
         st.warning("No results to display")
         return
-
+    
     for idx, row in results_df.iterrows():
         resume_name = Path(row['resume_file']).name
         with st.expander(f"📄 Rank #{row['rank']}: {resume_name} - {row['match_percentage']}", expanded=(idx == 0)):
@@ -1201,7 +1427,7 @@ def render_skill_extraction(results_df: pd.DataFrame):
             matched_skills = [s.strip() for s in row.get('matched_skills', '').split(',') if s.strip()]
             missing_skills = [s.strip() for s in row.get('missing_skills', '').split(',') if s.strip()]
             skill_evidence = row.get('skill_evidence', {}) if isinstance(row.get('skill_evidence', {}), dict) else {}
-
+            
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**All Extracted Skills**")
@@ -1211,11 +1437,11 @@ def render_skill_extraction(results_df: pd.DataFrame):
                 st.markdown("**Matched Skills**")
                 st.caption(f"Count: {len(matched_skills)}")
                 _render_skill_tags(matched_skills, bg="#d4edda", fg="#155724")
-
+            
             st.markdown("**Missing Skills**")
             st.caption(f"Count: {len(missing_skills)}")
             _render_skill_tags(missing_skills, bg="#f8d7da", fg="#721c24")
-
+            
             if skill_evidence:
                 with st.expander("Skill Evidence (page & bbox)", expanded=False):
                     for skill, entries in skill_evidence.items():
@@ -1232,16 +1458,16 @@ def render_match_and_explainability(results_df: pd.DataFrame):
     if results_df.empty:
         st.warning("No results to display")
         return
-
+    
     st.subheader("Match Score & Explainability")
-
+    
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Candidates", len(results_df))
     col2.metric("Best Match", results_df.iloc[0]['match_percentage'])
     col3.metric("Average Score", f"{results_df['overall_score'].mean() * 100:.1f}%")
     col4.metric("Qualified (≥50%)", (results_df['overall_score'] >= 0.5).sum())
     col5.metric("Fusion Similarity", f"{results_df.get('quad_score', pd.Series([0])).mean() * 100:.1f}%")
-
+    
     top_row = results_df.iloc[0]
     st.markdown("### Overall Match")
     col_a, col_b = st.columns(2)
@@ -1255,8 +1481,8 @@ def render_match_and_explainability(results_df: pd.DataFrame):
                 'bar': {'color': "darkblue"}
             }
         ))
-        st.plotly_chart(fig_gauge, width="stretch")
-
+        st.plotly_chart(fig_gauge, use_container_width=True)
+    
     with col_b:
         categories = {
             'Technical': top_row.get('technical_skills_score', 0),
@@ -1270,8 +1496,8 @@ def render_match_and_explainability(results_df: pd.DataFrame):
             fill='toself'
         ))
         fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=False)
-        st.plotly_chart(fig_radar, width="stretch")
-
+        st.plotly_chart(fig_radar, use_container_width=True)
+    
     st.markdown("### Similarity Fusion Breakdown")
     fusion_cols = st.columns(7)
     fusion_cols[0].metric("Semantic", f"{top_row.get('quad_semantic', 0.0) * 100:.1f}%")
@@ -1281,7 +1507,7 @@ def render_match_and_explainability(results_df: pd.DataFrame):
     fusion_cols[4].metric("Fused", f"{top_row.get('quad_score', 0.0) * 100:.1f}%")
     fusion_cols[5].metric("Context", f"{top_row.get('context_match', 0.0) * 100:.1f}%")
     fusion_cols[6].metric("Domain", f"{top_row.get('domain_relevance', 0.0) * 100:.1f}%")
-
+    
     fusion_rows = [
         ["Semantic (SBERT)", top_row.get('quad_semantic', 0.0)],
         ["Jaccard (skills)", top_row.get('quad_jaccard', 0.0)],
@@ -1294,7 +1520,7 @@ def render_match_and_explainability(results_df: pd.DataFrame):
     fusion_df = pd.DataFrame(fusion_rows, columns=["Signal", "Score"])
     fusion_df['Score'] = fusion_df['Score'].apply(lambda x: f"{float(x) * 100:.1f}%")
     st.table(fusion_df)
-
+    
     shap_vals = top_row.get('shap_values')
     if shap_vals:
         st.markdown("### SHAP Feature Contributions")
@@ -1302,7 +1528,7 @@ def render_match_and_explainability(results_df: pd.DataFrame):
         shap_df = pd.DataFrame(shap_items, columns=["Feature", "SHAP value"])
         shap_df['SHAP value'] = shap_df['SHAP value'].apply(lambda x: f"{x:.3f}")
         st.table(shap_df)
-
+    
     st.markdown("### Category Scores by Candidate")
     cat_df = results_df[
         ['resume_file', 'technical_skills_score', 'tools_score', 'frameworks_score', 'soft_skills_score']
@@ -1319,8 +1545,8 @@ def render_match_and_explainability(results_df: pd.DataFrame):
         labels={'Score': 'Score', 'Category': 'Category', 'resume_name': 'Resume'}
     )
     fig_cat_bar.update_layout(xaxis_title='Category', yaxis_title='Score (0-1)')
-    st.plotly_chart(fig_cat_bar, width="stretch")
-
+    st.plotly_chart(fig_cat_bar, use_container_width=True)
+    
     st.markdown("### Category Heatmap (Top 10)")
     heat_df = cat_df.head(10).set_index('resume_name')
     fig_heat = px.imshow(
@@ -1332,11 +1558,11 @@ def render_match_and_explainability(results_df: pd.DataFrame):
         color_continuous_scale='Blues',
         aspect='auto'
     )
-    st.plotly_chart(fig_heat, width="stretch")
-
+    st.plotly_chart(fig_heat, use_container_width=True)
+    
     st.markdown("### Explainability")
     st.info("SHAP/attribution placeholder: integrate SHAP plots when available.")
-
+    
     st.markdown("### Rankings & Distribution")
     col1, col2 = st.columns(2)
     with col1:
@@ -1353,7 +1579,7 @@ def render_match_and_explainability(results_df: pd.DataFrame):
             color_continuous_scale='Viridis'
         )
         fig_bar.update_layout(yaxis={'categoryorder': 'total ascending'})
-        st.plotly_chart(fig_bar, width="stretch")
+        st.plotly_chart(fig_bar, use_container_width=True)
     with col2:
         fig_hist = px.histogram(
             results_df,
@@ -1363,17 +1589,17 @@ def render_match_and_explainability(results_df: pd.DataFrame):
             labels={'overall_score': 'Match Score', 'count': 'Number of Candidates'},
             color_discrete_sequence=['#636EFA']
         )
-        st.plotly_chart(fig_hist, width="stretch")
+        st.plotly_chart(fig_hist, use_container_width=True)
 
 
 def render_career_and_downloads(results_df: pd.DataFrame):
     """Tab 5: Career suggestions, missing skills, ranked table, downloads."""
     st.subheader("Career / Improvement Suggestions")
-
+    
     if results_df.empty:
         st.warning("No results to display")
         return
-
+    
     # Use top candidate missing skills as quick guidance
     top_row = results_df.iloc[0]
     missing_skills = [s.strip() for s in top_row.get('missing_skills', '').split(',') if s.strip()]
@@ -1384,7 +1610,7 @@ def render_career_and_downloads(results_df: pd.DataFrame):
         st.write("Focus next on: " + ", ".join(missing_skills[:3]))
     else:
         st.info("No missing skills detected for the top candidate.")
-
+    
     st.markdown("### Ranked Candidates (Top 10)")
     key_columns = [
         'rank', 'resume_file', 'match_percentage', 'overall_score',
@@ -1398,8 +1624,8 @@ def render_career_and_downloads(results_df: pd.DataFrame):
     for col in score_columns:
         if col != 'match_percentage':
             display_df[col] = display_df[col].apply(lambda x: f"{x * 100:.1f}%")
-    st.dataframe(display_df, width="stretch", height=320)
-
+    st.dataframe(display_df, use_container_width=True)
+    
     st.markdown("### Download Resumes")
     selected_resumes = st.multiselect(
         "Choose resumes to download",
@@ -1408,11 +1634,11 @@ def render_career_and_downloads(results_df: pd.DataFrame):
         help="Select one or more resumes to download",
         key="main_resume_download_selector"
     )
-
+    
     if selected_resumes:
         import zipfile
         import io
-
+        
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for resume_path in selected_resumes:
@@ -1424,19 +1650,19 @@ def render_career_and_downloads(results_df: pd.DataFrame):
                     new_name = f"Rank{rank}_Score{score*100:.0f}_{name_parts[0]}.{name_parts[1]}"
                     zip_file.writestr(new_name, st.session_state.uploaded_file_objects[resume_path])
         zip_buffer.seek(0)
-
+        
         st.download_button(
             label=f"⬇️ Download {len(selected_resumes)} Resume(s) as ZIP",
             data=zip_buffer,
             file_name="selected_resumes.zip",
             mime="application/zip",
             type="primary",
-            width="stretch",
+            use_container_width=True,
             key="main_zip_download_button"
         )
     else:
         st.info("Select candidates above to download their resumes.")
-
+    
     qualified_df = results_df[results_df['overall_score'] >= 0.5]
     if len(qualified_df) > 0:
         import zipfile
@@ -1458,7 +1684,7 @@ def render_career_and_downloads(results_df: pd.DataFrame):
             data=qualified_zip_buffer,
             file_name="qualified_resumes.zip",
             mime="application/zip",
-            width="stretch",
+            use_container_width=True,
             key="download_qualified_resumes_button"
         )
     else:
@@ -1481,7 +1707,7 @@ def display_resume_details(resume_file: str, results_df: pd.DataFrame, jd_text: 
         st.error(f"Could not find data for resume: {Path(resume_file).name}")
         st.info("Please select a different resume from the dropdown.")
         return
-
+    
     resume_data = filtered_df.iloc[0]
     
     col1, col2 = st.columns(2)
@@ -1512,7 +1738,7 @@ def display_resume_details(resume_file: str, results_df: pd.DataFrame, jd_text: 
             }
         ))
         
-        st.plotly_chart(fig_gauge, width="stretch")
+        st.plotly_chart(fig_gauge, use_container_width=True)
     
     with col2:
         st.subheader("📈 Category Breakdown")
@@ -1538,7 +1764,7 @@ def display_resume_details(resume_file: str, results_df: pd.DataFrame, jd_text: 
             showlegend=False
         )
         
-        st.plotly_chart(fig_radar, width="stretch")
+        st.plotly_chart(fig_radar, use_container_width=True)
     
     st.markdown("---")
     
@@ -1571,8 +1797,6 @@ def display_resume_details(resume_file: str, results_df: pd.DataFrame, jd_text: 
         else:
             st.info("No matches")
     
-    with col3:
-        st.subheader("❌ Missing")
     with col3:
         st.subheader("❌ Missing")
         missing_skills = resume_data.get('missing_skills', '')
