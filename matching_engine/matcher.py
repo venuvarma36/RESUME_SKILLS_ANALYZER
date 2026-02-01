@@ -19,6 +19,13 @@ from utils import (
 
 logger = get_logger(__name__)
 
+try:
+    from blockchain.secure_storage import SecureDataStorage
+    BLOCKCHAIN_AVAILABLE = True
+except Exception as e:  # noqa: BLE001
+    BLOCKCHAIN_AVAILABLE = False
+    logger.warning("Blockchain module not available: %s", str(e))
+
 
 class ResumeJDMatcher:
     """Matches resumes to job descriptions using skill-based similarity."""
@@ -29,6 +36,21 @@ class ResumeJDMatcher:
         self.preprocessor = TextPreprocessor(download_nltk_data=False)
         self.skill_extractor = SkillExtractor()
         self.feature_engineer = FeatureEngineer()
+
+        # Initialize blockchain secure storage if enabled
+        self.blockchain_enabled = config.get('blockchain.enabled', False) and BLOCKCHAIN_AVAILABLE
+        if self.blockchain_enabled:
+            try:
+                self.secure_storage = SecureDataStorage()
+                logger.info("Blockchain secure storage initialized")
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Failed to initialize blockchain secure storage: %s", exc)
+                self.blockchain_enabled = False
+                self.secure_storage = None
+        else:
+            self.secure_storage = None
+            if config.get('blockchain.enabled', False) and not BLOCKCHAIN_AVAILABLE:
+                logger.warning("Blockchain enabled in config but module not available")
         
         # Load configuration
         self.similarity_metric = config.get('matching.similarity_metric', 'cosine')
@@ -43,6 +65,7 @@ class ResumeJDMatcher:
         self.shap_enabled = config.get('matching.shap_enabled', True)
         
         logger.info("ResumeJDMatcher initialized with weights: %s", self.weights)
+        logger.info("Blockchain encryption: %s", "ENABLED" if self.blockchain_enabled else "DISABLED")
     
     def process_resume(self, resume_path: str) -> Dict[str, any]:
         """
@@ -85,8 +108,8 @@ class ResumeJDMatcher:
         embedding = self.feature_engineer.generate_weighted_skill_embedding(
             skills, self.weights
         )
-        
-        return {
+
+        resume_data = {
             'file_path': resume_path,
             'success': True,
             'error': None,
@@ -98,6 +121,18 @@ class ResumeJDMatcher:
             'tables': extraction_result.get('tables', []),
             'skill_evidence': skill_evidence
         }
+
+        # Store in blockchain if enabled
+        if self.blockchain_enabled and self.secure_storage:
+            try:
+                storage_metadata = self.secure_storage.store_resume(resume_data)
+                resume_data['blockchain_block'] = storage_metadata['block_index']
+                resume_data['blockchain_hash'] = storage_metadata['block_hash']
+                logger.info("Resume stored in blockchain at block #%d", storage_metadata['block_index'])
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Failed to store resume in blockchain: %s", exc)
+
+        return resume_data
     
     def process_job_description(self, jd_text: str) -> Dict[str, any]:
         """
@@ -127,14 +162,26 @@ class ResumeJDMatcher:
         embedding = self.feature_engineer.generate_weighted_skill_embedding(
             skills, self.weights
         )
-        
-        return {
+
+        jd_data = {
             'text': jd_text,
             'skills': skills,
             'embedding': embedding,
             'success': True,
             'error': None
         }
+
+        # Store in blockchain if enabled
+        if self.blockchain_enabled and self.secure_storage:
+            try:
+                storage_metadata = self.secure_storage.store_job_description(jd_data)
+                jd_data['blockchain_block'] = storage_metadata['block_index']
+                jd_data['blockchain_hash'] = storage_metadata['block_hash']
+                logger.info("Job description stored in blockchain at block #%d", storage_metadata['block_index'])
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Failed to store job description in blockchain: %s", exc)
+
+        return jd_data
     
     def compute_match_score(self, resume_data: Dict, jd_data: Dict) -> Dict[str, any]:
         """

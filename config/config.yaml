@@ -112,4 +112,11 @@ ui:
   page_icon: "📄"
   layout: "wide"
   max_file_size_mb: 10
+
+# Blockchain Configuration
+blockchain:
+  enabled: true
+  difficulty: 4  # Proof-of-work difficulty (number of leading zeros)
+  master_key: rB3E_qb79atNM3NfXTDXUy7d5UoiipWjbqqAHHFiXAI=  # Set this to your generated master key (keep secret!)
+  chain_file: "data/blockchain.json"  # Blockchain storage location
   show_detailed_scores: true
