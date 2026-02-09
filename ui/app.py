@@ -622,6 +622,9 @@ def initialize_session_state():
     if 'uploaded_file_objects' not in st.session_state:
         st.session_state.uploaded_file_objects = {}
 
+    if 'resume_folder_path' not in st.session_state:
+        st.session_state.resume_folder_path = ""
+
     if 'auth_accounts' not in st.session_state:
         st.session_state.auth_accounts = []
 
@@ -943,6 +946,7 @@ def render_sidebar():
                 st.session_state.results = None
                 st.session_state.processed_resumes = []
                 st.session_state.uploaded_files_data = None
+                st.session_state.resume_folder_path = ""
                 st.session_state.jd_text_input = ""
                 st.session_state.active_nav = "Upload & Job Description"
                 st.session_state.auth_mode = "Login"
@@ -1320,11 +1324,31 @@ def do_actual_processing(uploaded_files, jd_text):
         st.session_state.uploaded_file_objects = {}
         
         for uploaded_file in uploaded_files:
-            file_path = os.path.join(temp_dir, uploaded_file.name)
+            file_bytes = None
+            file_name = None
+
+            if hasattr(uploaded_file, "getvalue") and hasattr(uploaded_file, "name"):
+                # Streamlit UploadedFile
+                file_name = uploaded_file.name
+                file_bytes = uploaded_file.getvalue()
+            else:
+                # Local file path from folder selection
+                local_path = Path(uploaded_file)
+                if not local_path.exists():
+                    logger.warning("Skipped missing file from folder: %s", local_path)
+                    continue
+                file_name = local_path.name
+                file_bytes = local_path.read_bytes()
+
+            if not file_bytes:
+                logger.warning("No data found for file: %s", file_name)
+                continue
+
+            file_path = os.path.join(temp_dir, file_name)
             with open(file_path, 'wb') as f:
-                f.write(uploaded_file.getbuffer())
+                f.write(file_bytes)
             resume_paths.append(file_path)
-            st.session_state.uploaded_file_objects[file_path] = uploaded_file.getvalue()
+            st.session_state.uploaded_file_objects[file_path] = file_bytes
         
         logger.info("Starting resume matching for %d files", len(resume_paths))
         
@@ -1359,6 +1383,20 @@ def do_actual_processing(uploaded_files, jd_text):
         raise e
 
 
+def load_resumes_from_folder(folder_path: str) -> List[Path]:
+    """Return supported resume files from a folder."""
+    folder = Path(folder_path).expanduser()
+    if not folder.exists():
+        raise FileNotFoundError(f"Folder not found: {folder}")
+    if not folder.is_dir():
+        raise NotADirectoryError(f"Not a folder: {folder}")
+
+    supported_ext = {'.pdf', '.docx', '.doc'}
+    files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in supported_ext]
+    files.sort(key=lambda p: p.name.lower())
+    return files
+
+
 def render_upload_tab():
     """Tab 1: Upload resumes and provide job description."""
     st.subheader("Upload & Job Description")
@@ -1372,6 +1410,35 @@ def render_upload_tab():
             accept_multiple_files=True,
             help="Supported formats: PDF, DOCX. Scanned PDFs OK (OCR)."
         )
+
+        folder_path_input = st.text_input(
+            "Or load all resumes from a folder",
+            value=st.session_state.resume_folder_path,
+            placeholder="C:/Users/you/Documents/resumes",
+            help="Provide a local folder path; all PDF/DOCX files inside will be loaded."
+        )
+        load_folder_clicked = st.button(
+            "📂 Load folder",
+            use_container_width=True,
+            key="load_folder_button"
+        )
+        if load_folder_clicked:
+            if folder_path_input.strip():
+                try:
+                    folder_files = load_resumes_from_folder(folder_path_input.strip())
+                    if folder_files:
+                        st.session_state.uploaded_files_data = folder_files
+                        st.session_state.resume_folder_path = folder_path_input.strip()
+                        st.success(f"✓ Loaded {len(folder_files)} file(s) from folder")
+                        with st.expander("View loaded files", expanded=False):
+                            for file in folder_files:
+                                st.text(f"• {file.name}")
+                    else:
+                        st.warning("No PDF/DOCX files found in that folder.")
+                except Exception as exc:
+                    st.error(f"Unable to load folder: {exc}")
+            else:
+                st.warning("Enter a folder path to load resumes.")
         
         # Store uploaded files in session state
         if uploaded_files:
