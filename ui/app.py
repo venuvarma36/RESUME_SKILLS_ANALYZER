@@ -29,6 +29,9 @@ LoggerManager.setup_logging(
 
 logger = get_logger(__name__)
 
+MIN_RESUME_FILES = 1
+MAX_RESUME_FILES = 100
+
 
 # Page configuration
 st.set_page_config(
@@ -1286,6 +1289,14 @@ def process_matching(uploaded_files, jd_text):
         jd_text: Job description text
     """
     try:
+        file_count = len(uploaded_files) if uploaded_files else 0
+        if file_count < MIN_RESUME_FILES:
+            st.error(f"Please upload at least {MIN_RESUME_FILES} resume file.")
+            return
+        if file_count > MAX_RESUME_FILES:
+            st.error(f"Please upload at most {MAX_RESUME_FILES} resume files per run.")
+            return
+
         # Set processing flag
         st.session_state.is_processing = True
         st.session_state.processing_step = "extract"
@@ -1349,6 +1360,11 @@ def do_actual_processing(uploaded_files, jd_text):
                 f.write(file_bytes)
             resume_paths.append(file_path)
             st.session_state.uploaded_file_objects[file_path] = file_bytes
+
+        if len(resume_paths) < MIN_RESUME_FILES:
+            raise ValueError("No valid resume files found after upload processing")
+        if len(resume_paths) > MAX_RESUME_FILES:
+            raise ValueError(f"Maximum {MAX_RESUME_FILES} resume files are allowed per run")
         
         logger.info("Starting resume matching for %d files", len(resume_paths))
         
@@ -1427,12 +1443,15 @@ def render_upload_tab():
                 try:
                     folder_files = load_resumes_from_folder(folder_path_input.strip())
                     if folder_files:
-                        st.session_state.uploaded_files_data = folder_files
-                        st.session_state.resume_folder_path = folder_path_input.strip()
-                        st.success(f"✓ Loaded {len(folder_files)} file(s) from folder")
-                        with st.expander("View loaded files", expanded=False):
-                            for file in folder_files:
-                                st.text(f"• {file.name}")
+                        if len(folder_files) > MAX_RESUME_FILES:
+                            st.error(f"Folder contains {len(folder_files)} files. Maximum allowed is {MAX_RESUME_FILES}.")
+                        else:
+                            st.session_state.uploaded_files_data = folder_files
+                            st.session_state.resume_folder_path = folder_path_input.strip()
+                            st.success(f"✓ Loaded {len(folder_files)} file(s) from folder")
+                            with st.expander("View loaded files", expanded=False):
+                                for file in folder_files:
+                                    st.text(f"• {file.name}")
                     else:
                         st.warning("No supported resume files found in that folder.")
                 except Exception as exc:
@@ -1471,12 +1490,18 @@ def render_upload_tab():
     # Use stored values if current widgets are empty
     files_to_use = uploaded_files if uploaded_files else st.session_state.uploaded_files_data
     jd_to_use = jd_text if jd_text else st.session_state.jd_text_input
+    file_count = len(files_to_use) if files_to_use else 0
+
+    if file_count > MAX_RESUME_FILES:
+        st.error(f"Upload limit exceeded: {file_count} files selected. Maximum allowed is {MAX_RESUME_FILES}.")
+    elif file_count > 0:
+        st.caption(f"Selected files: {file_count} (allowed: {MIN_RESUME_FILES} to {MAX_RESUME_FILES})")
     
     match_button = st.button(
         "🚀 Match Resumes",
         type="primary",
         use_container_width=True,
-        disabled=(not files_to_use or not jd_to_use)
+        disabled=(file_count < MIN_RESUME_FILES or file_count > MAX_RESUME_FILES or not jd_to_use)
     )
     
     return files_to_use, jd_to_use, match_button
