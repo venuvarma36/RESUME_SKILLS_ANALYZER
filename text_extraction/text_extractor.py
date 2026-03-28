@@ -1,6 +1,6 @@
 """
-Text Extraction Module for Resume Skill Recognition System
-Handles extraction of text from PDF and DOCX files with OCR fallback.
+Text Extraction Module for Resume Skill Recognition System.
+Handles extraction of text from PDF, DOCX, and image files.
 """
 
 import io
@@ -25,6 +25,12 @@ class TextExtractor:
         """Initialize text extractor with configuration."""
         self.min_text_length = config.get('extraction.min_text_length', 100)
         self.ocr_fallback = config.get('extraction.ocr_fallback', True)
+        self.supported_formats = config.get(
+            'extraction.supported_formats',
+            ['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'tif', 'webp']
+        )
+        self.image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'}
+        self.builtin_supported_extensions = {'.pdf', '.docx', '.doc'} | self.image_extensions
         self.ocr_language = config.get('extraction.ocr_language', 'eng')
         self.pdf_method = config.get('extraction.pdf_extraction_method', 'pdfplumber')
         self.use_pymupdf = config.get('extraction.use_pymupdf', True)
@@ -62,13 +68,28 @@ class TextExtractor:
                 'error': 'File not found'
             }
         
-        ext = file_path.suffix.lower()
+        ext = ''.join(ch for ch in file_path.suffix.lower().strip() if ch.isalnum() or ch == '.')
+        config_supported = {
+            f".{fmt.lower().lstrip('.')}" for fmt in self.supported_formats
+        }
+        normalized_supported = config_supported | self.builtin_supported_extensions
         
         try:
+            if ext not in normalized_supported:
+                logger.warning("Unsupported file format: %s", ext)
+                return {
+                    'text': '',
+                    'method': 'none',
+                    'success': False,
+                    'error': f'Unsupported format: {ext}'
+                }
+
             if ext == '.pdf':
                 return self._extract_from_pdf(file_path)
             elif ext in ['.docx', '.doc']:
                 return self._extract_from_docx(file_path)
+            elif ext in self.image_extensions:
+                return self._extract_from_image(file_path)
             else:
                 logger.warning("Unsupported file format: %s", ext)
                 return {
@@ -79,6 +100,43 @@ class TextExtractor:
                 }
         except Exception as e:
             logger.error("Error extracting text from %s: %s", file_path, str(e))
+            return {
+                'text': '',
+                'method': 'error',
+                'success': False,
+                'error': str(e)
+            }
+
+    def _extract_from_image(self, file_path: Path) -> Dict[str, Any]:
+        """
+        Extract text directly from image files using OCR.
+
+        Args:
+            file_path: Path to image file
+
+        Returns:
+            Extraction result dictionary
+        """
+        logger.info("Extracting text from image: %s", file_path.name)
+
+        try:
+            if self.tesseract_path:
+                pytesseract.pytesseract.tesseract_cmd = self.tesseract_path
+
+            with Image.open(file_path) as image:
+                text = pytesseract.image_to_string(image, lang=self.ocr_language)
+
+            # For images, accept any non-empty OCR text; strict minimum can drop valid short resumes.
+            success = len(text.strip()) > 0
+            return {
+                'text': text,
+                'method': 'image_ocr',
+                'success': success,
+                'error': None if success else 'Insufficient text extracted from image',
+                'ocr_performed': True
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.error("Image OCR extraction failed: %s", str(e))
             return {
                 'text': '',
                 'method': 'error',

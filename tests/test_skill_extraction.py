@@ -79,6 +79,38 @@ class TestSkillExtractor:
         assert isinstance(flat_skills, list)
         assert len(flat_skills) == 4
 
+    def test_infer_transferable_skills_combo_rule(self):
+        """Test transferable inference for Computer Networks + Java -> Python/backend/distributed."""
+        explicit_skills = {
+            'technical_skills': ['Computer Networks', 'Java'],
+            'tools': [],
+            'frameworks': [],
+            'soft_skills': [],
+            'certifications': []
+        }
+
+        inferred = self.extractor.infer_transferable_skills(explicit_skills)
+        inferred_flat = {s.lower() for s in self.extractor.get_all_skills_flat(inferred)}
+
+        assert 'python' in inferred_flat
+        assert 'backend development' in inferred_flat
+        assert 'distributed systems' in inferred_flat
+
+    def test_inference_does_not_repeat_explicit_skill(self):
+        """Test that inference does not add skills already explicit in the resume."""
+        explicit_skills = {
+            'technical_skills': ['Java', 'Backend Development'],
+            'tools': [],
+            'frameworks': [],
+            'soft_skills': [],
+            'certifications': []
+        }
+
+        inferred = self.extractor.infer_transferable_skills(explicit_skills)
+        inferred_flat = {s.lower() for s in self.extractor.get_all_skills_flat(inferred)}
+
+        assert 'backend development' not in inferred_flat
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -1391,7 +1391,7 @@ def load_resumes_from_folder(folder_path: str) -> List[Path]:
     if not folder.is_dir():
         raise NotADirectoryError(f"Not a folder: {folder}")
 
-    supported_ext = {'.pdf', '.docx', '.doc'}
+    supported_ext = {'.pdf', '.docx', '.doc', '.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'}
     files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in supported_ext]
     files.sort(key=lambda p: p.name.lower())
     return files
@@ -1405,17 +1405,17 @@ def render_upload_tab():
     
     with col1:
         uploaded_files = st.file_uploader(
-            "Choose resume files (PDF/DOCX)",
-            type=['pdf', 'docx'],
+            "Choose resume files (PDF/DOCX/Image)",
+            type=['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'tif', 'webp'],
             accept_multiple_files=True,
-            help="Supported formats: PDF, DOCX. Scanned PDFs OK (OCR)."
+            help="Supported formats: PDF, DOCX, and images (PNG/JPG/JPEG/BMP/TIFF/WEBP). OCR is used for scanned files."
         )
 
         folder_path_input = st.text_input(
             "Or load all resumes from a folder",
             value=st.session_state.resume_folder_path,
             placeholder="C:/Users/you/Documents/resumes",
-            help="Provide a local folder path; all PDF/DOCX files inside will be loaded."
+            help="Provide a local folder path; all supported resume files inside will be loaded."
         )
         load_folder_clicked = st.button(
             "📂 Load folder",
@@ -1434,7 +1434,7 @@ def render_upload_tab():
                             for file in folder_files:
                                 st.text(f"• {file.name}")
                     else:
-                        st.warning("No PDF/DOCX files found in that folder.")
+                        st.warning("No supported resume files found in that folder.")
                 except Exception as exc:
                     st.error(f"Unable to load folder: {exc}")
             else:

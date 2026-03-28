@@ -65,10 +65,13 @@ class SkillExtractor:
         self.canonicalize = config.get('skill_extraction.canonicalize', True)
         self.canonical_threshold = config.get('skill_extraction.canonical_match_threshold', 85)
         self.embedding_model_for_keywords = config.get('skill_extraction.keyword_embedding_model', 'sentence-transformers/all-MiniLM-L6-v2')
+        self.enable_transferable_inference = config.get('skill_inference.enabled', True)
+        self.inference_rules_path = config.get('skill_inference.rules_path', 'config/skill_inference_rules.json')
         
         # Load skill dictionary
         self.skill_dict = self._load_skill_dictionary()
         self._ontology_all = self._build_ontology_index(self.skill_dict)
+        self.inference_rules = self._load_inference_rules()
         
         # Initialize NER model
         self.ner_pipeline = None
@@ -137,6 +140,37 @@ class SkillExtractor:
                 continue
             ontology.update([s.lower() for s in skill_list])
         return ontology
+
+    def _load_inference_rules(self) -> Dict[str, Any]:
+        """Load transferable skill inference rules from JSON config."""
+        default_rules: Dict[str, Any] = {
+            'single_skill_rules': {},
+            'combination_rules': []
+        }
+
+        if not self.enable_transferable_inference:
+            return default_rules
+
+        try:
+            project_root = Path(__file__).parent.parent
+            rules_path = project_root / self.inference_rules_path
+
+            if not rules_path.exists():
+                logger.warning("Skill inference rules not found at %s; inference will run with defaults", rules_path)
+                return default_rules
+
+            rules = load_json(str(rules_path))
+            if not isinstance(rules, dict):
+                logger.warning("Invalid inference rules format; expected object, got %s", type(rules).__name__)
+                return default_rules
+
+            rules.setdefault('single_skill_rules', {})
+            rules.setdefault('combination_rules', [])
+            logger.info("Loaded transferable skill inference rules from %s", rules_path)
+            return rules
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Failed to load skill inference rules: %s", exc)
+            return default_rules
     
     def _initialize_ner_model(self):
         """Initialize NER model for skill extraction."""
@@ -497,6 +531,75 @@ class SkillExtractor:
             normalized[category] = normalized_list
         
         return normalized
+
+    def infer_transferable_skills(self, skills: Dict[str, List[str]]) -> Dict[str, List[str]]:
+        """
+        Infer related/transferable skills from explicitly extracted skills.
+
+        Args:
+            skills: Explicitly extracted and categorized skills
+
+        Returns:
+            Dictionary of inferred skills by category
+        """
+        inferred = self._empty_result()
+        if not self.enable_transferable_inference:
+            return inferred
+
+        explicit_lower = {
+            s.lower()
+            for skill_list in skills.values()
+            for s in skill_list
+            if isinstance(s, str) and s.strip()
+        }
+
+        if not explicit_lower:
+            return inferred
+
+        ontology_category = {}
+        for category, skill_list in self.skill_dict.items():
+            if category == 'synonyms':
+                continue
+            for item in skill_list:
+                if isinstance(item, str):
+                    ontology_category[item.lower()] = category
+
+        def _add_target(target_skill: str) -> None:
+            skill_lower = target_skill.lower()
+            if skill_lower in explicit_lower:
+                return
+            if skill_lower not in self._ontology_all:
+                return
+            target_category = ontology_category.get(skill_lower, 'technical_skills')
+            inferred[target_category].append(target_skill)
+
+        single_rules = self.inference_rules.get('single_skill_rules', {})
+        if isinstance(single_rules, dict):
+            for source_skill, targets in single_rules.items():
+                if not isinstance(source_skill, str):
+                    continue
+                if source_skill.lower() not in explicit_lower:
+                    continue
+                for target_skill in targets or []:
+                    if isinstance(target_skill, str):
+                        _add_target(target_skill)
+
+        combo_rules = self.inference_rules.get('combination_rules', [])
+        if isinstance(combo_rules, list):
+            for rule in combo_rules:
+                if not isinstance(rule, dict):
+                    continue
+                requires = [r.lower() for r in rule.get('requires', []) if isinstance(r, str)]
+                if not requires or not set(requires).issubset(explicit_lower):
+                    continue
+                for target_skill in rule.get('infer', []) or []:
+                    if isinstance(target_skill, str):
+                        _add_target(target_skill)
+
+        for category in inferred:
+            inferred[category] = deduplicate_list(inferred[category], case_sensitive=False)
+
+        return inferred
     
     def _is_valid_skill(self, skill: str) -> bool:
         """

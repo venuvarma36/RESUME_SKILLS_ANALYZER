@@ -3,7 +3,7 @@ Matching Engine Module for Resume Skill Recognition System
 Matches resumes to job descriptions based on skill similarity.
 """
 
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
 
@@ -63,11 +63,13 @@ class ResumeJDMatcher:
         self.min_threshold = config.get('matching.min_match_threshold', 0.3)
         self.adaptive_weights = config.get('matching.domain_adaptive_weights', True)
         self.shap_enabled = config.get('matching.shap_enabled', True)
+        self.use_inferred_skills = config.get('skill_inference.enabled', True)
+        self.inferred_skill_weight = config.get('matching.inferred_skill_weight', 0.6)
         
         logger.info("ResumeJDMatcher initialized with weights: %s", self.weights)
         logger.info("Blockchain encryption: %s", "ENABLED" if self.blockchain_enabled else "DISABLED")
     
-    def process_resume(self, resume_path: str) -> Dict[str, any]:
+    def process_resume(self, resume_path: str) -> Dict[str, Any]:
         """
         Process a single resume.
         
@@ -91,7 +93,9 @@ class ResumeJDMatcher:
                 'error': extraction_result['error'],
                 'text': '',
                 'skills': {},
+                'inferred_skills': {},
                 'embedding': None,
+                'extraction_method': extraction_result.get('method', 'none'),
                 'pages': extraction_result.get('pages', []),
                 'tables': extraction_result.get('tables', [])
             }
@@ -100,6 +104,7 @@ class ResumeJDMatcher:
         
         # Extract skills
         skills = self.skill_extractor.extract(text)
+        inferred_skills = self.skill_extractor.infer_transferable_skills(skills) if self.use_inferred_skills else {}
 
         # Attach provenance: map skills to pages and bounding boxes when available
         skill_evidence = self._attach_skill_evidence(skills, extraction_result.get('pages', []))
@@ -115,6 +120,7 @@ class ResumeJDMatcher:
             'error': None,
             'text': text,
             'skills': skills,
+            'inferred_skills': inferred_skills,
             'embedding': embedding,
             'extraction_method': extraction_result['method'],
             'pages': extraction_result.get('pages', []),
@@ -134,7 +140,7 @@ class ResumeJDMatcher:
 
         return resume_data
     
-    def process_job_description(self, jd_text: str) -> Dict[str, any]:
+    def process_job_description(self, jd_text: str) -> Dict[str, Any]:
         """
         Process job description text.
         
@@ -183,7 +189,7 @@ class ResumeJDMatcher:
 
         return jd_data
     
-    def compute_match_score(self, resume_data: Dict, jd_data: Dict) -> Dict[str, any]:
+    def compute_match_score(self, resume_data: Dict[str, Any], jd_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Compute match score between resume and job description.
         
@@ -215,15 +221,23 @@ class ResumeJDMatcher:
         
         # Compute category-wise scores
         category_scores = {}
+        inferred_match_details = {}
+        inferred_skills_by_category = resume_data.get('inferred_skills', {}) or {}
         for category in ['technical_skills', 'tools', 'frameworks', 'soft_skills']:
             resume_skills = set(s.lower() for s in resume_data['skills'].get(category, []))
+            inferred_skills = set(s.lower() for s in inferred_skills_by_category.get(category, []))
             jd_skills = set(s.lower() for s in jd_data['skills'].get(category, []))
             
             if jd_skills:
-                overlap = resume_skills & jd_skills
-                category_score = len(overlap) / len(jd_skills)
+                explicit_overlap = resume_skills & jd_skills
+                inferred_only_overlap = (inferred_skills & jd_skills) - explicit_overlap
+                weighted_hits = len(explicit_overlap) + (self.inferred_skill_weight * len(inferred_only_overlap))
+                category_score = safe_divide(weighted_hits, len(jd_skills))
+                category_score = min(1.0, category_score)
+                inferred_match_details[category] = sorted(inferred_only_overlap)
             else:
                 category_score = 1.0 if not resume_skills else 0.5
+                inferred_match_details[category] = []
             
             category_scores[category] = category_score
         
@@ -252,13 +266,18 @@ class ResumeJDMatcher:
         shap_values = self.feature_engineer.explain_with_shap(quad_features)
         
         # Get skill overlap details
-        all_resume_skills = set(s.lower() for skills in resume_data['skills'].values() 
-                               for s in skills)
+        all_resume_skills = set(s.lower() for skills in resume_data['skills'].values() for s in skills)
+        all_inferred_skills = set(
+            s.lower()
+            for skills in inferred_skills_by_category.values()
+            for s in skills
+        )
         all_jd_skills = set(s.lower() for skills in jd_data['skills'].values() 
                            for s in skills)
         
         matched_skills = list(all_resume_skills & all_jd_skills)
-        missing_skills = list(all_jd_skills - all_resume_skills)
+        inferred_matched_skills = list((all_inferred_skills & all_jd_skills) - set(matched_skills))
+        missing_skills = list(all_jd_skills - all_resume_skills - set(inferred_matched_skills))
         
         return {
             'overall_score': final_score,
@@ -267,6 +286,8 @@ class ResumeJDMatcher:
             'quad_features': quad_features,
             'category_scores': category_scores,
             'matched_skills': matched_skills,
+            'inferred_matched_skills': inferred_matched_skills,
+            'inferred_match_details': inferred_match_details,
             'missing_skills': missing_skills,
             'match_percentage': format_percentage(final_score),
             'shap_values': shap_values
@@ -353,9 +374,12 @@ class ResumeJDMatcher:
                 'frameworks_score': match_result['category_scores'].get('frameworks', 0.0),
                 'soft_skills_score': match_result['category_scores'].get('soft_skills', 0.0),
                 'matched_skills_count': len(match_result['matched_skills']),
+                'inferred_matched_skills_count': len(match_result.get('inferred_matched_skills', [])),
                 'missing_skills_count': len(match_result['missing_skills']),
+                'inferred_skills_count': len(self.skill_extractor.get_all_skills_flat(resume_data.get('inferred_skills', {}))),
                 'all_extracted_skills': ', '.join(sorted(set(all_extracted))),  # All unique skills
                 'matched_skills': ', '.join(match_result['matched_skills'][:10]),  # Top 10
+                'inferred_matched_skills': ', '.join(match_result.get('inferred_matched_skills', [])[:10]),
                 'missing_skills': ', '.join(match_result['missing_skills'][:10]),  # Top 10
                 'extraction_success': resume_data['success'],
                 'extraction_method': resume_data.get('extraction_method', 'unknown'),
@@ -430,8 +454,11 @@ class ResumeJDMatcher:
             'quad_score': match_result.get('quad_score', 0.0),
             'category_overlap': category_overlap,
             'matched_skills': match_result['matched_skills'],
+            'inferred_matched_skills': match_result.get('inferred_matched_skills', []),
+            'inferred_match_details': match_result.get('inferred_match_details', {}),
             'missing_skills': match_result['missing_skills'],
             'resume_skills': resume_data['skills'],
+            'inferred_resume_skills': resume_data.get('inferred_skills', {}),
             'jd_skills': jd_data['skills'],
             'extraction_method': resume_data.get('extraction_method', 'unknown')
         }

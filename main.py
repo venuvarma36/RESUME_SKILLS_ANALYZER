@@ -89,6 +89,7 @@ def match_resumes(resume_paths: list, jd_text: str, output_path: str = None):
 
 def main():
     """Main function for CLI."""
+    logger.info("Python executable: %s", sys.executable)
     parser = argparse.ArgumentParser(
         description='Resume Skill Recognition & Matching System',
         formatter_class=argparse.RawDescriptionHelpFormatter,

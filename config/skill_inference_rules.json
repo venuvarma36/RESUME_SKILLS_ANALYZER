@@ -1,0 +1,928 @@
+{
+  "single_skill_rules": {
+    "java": [
+      "Backend Development",
+      "Microservices",
+      "API Development"
+    ],
+    "python": [
+      "Backend Development",
+      "API Development",
+      "Data Analysis",
+      "Shell Scripting"
+    ],
+    "javascript": [
+      "Frontend Development",
+      "Web Development",
+      "API Development"
+    ],
+    "typescript": [
+      "Frontend Development",
+      "Backend Development",
+      "Web Development"
+    ],
+    "c#": [
+      ".NET",
+      "Backend Development",
+      "API Development"
+    ],
+    ".net": [
+      "ASP.NET",
+      "Backend Development",
+      "Microservices"
+    ],
+    "go": [
+      "Backend Development",
+      "Microservices",
+      "Distributed Systems"
+    ],
+    "rust": [
+      "Systems Thinking",
+      "Performance Tuning",
+      "Concurrent Programming"
+    ],
+    "node.js": [
+      "Backend Development",
+      "API Development",
+      "Web Development"
+    ],
+    "express": [
+      "Node.js",
+      "REST API",
+      "Backend Development"
+    ],
+    "django": [
+      "Python",
+      "REST API",
+      "Backend Development"
+    ],
+    "flask": [
+      "Python",
+      "API Development",
+      "Backend Development"
+    ],
+    "fastapi": [
+      "Python",
+      "REST API",
+      "Backend Development"
+    ],
+    "spring": [
+      "Java",
+      "Spring Boot",
+      "Backend Development"
+    ],
+    "spring boot": [
+      "Microservices",
+      "REST API",
+      "Backend Development"
+    ],
+    "react": [
+      "Frontend Development",
+      "Single Page Applications",
+      "JavaScript"
+    ],
+    "react.js": [
+      "React",
+      "Frontend Development",
+      "Single Page Applications"
+    ],
+    "angular": [
+      "Frontend Development",
+      "TypeScript",
+      "Single Page Applications"
+    ],
+    "vue": [
+      "Frontend Development",
+      "JavaScript",
+      "Single Page Applications"
+    ],
+    "vue.js": [
+      "Vue",
+      "Frontend Development",
+      "Single Page Applications"
+    ],
+    "next.js": [
+      "React",
+      "Server-Side Rendering",
+      "Frontend Development"
+    ],
+    "sql": [
+      "Database Management",
+      "Database Design",
+      "Query Optimization"
+    ],
+    "postgresql": [
+      "SQL",
+      "Database Management",
+      "Database Optimization"
+    ],
+    "mysql": [
+      "SQL",
+      "Database Management",
+      "Database Design"
+    ],
+    "mongodb": [
+      "NoSQL",
+      "Database Management",
+      "Data Modeling"
+    ],
+    "redis": [
+      "Caching",
+      "Database Optimization",
+      "Real-Time Systems"
+    ],
+    "graphql": [
+      "API Development",
+      "Backend Development",
+      "Web Development"
+    ],
+    "rest api": [
+      "API Development",
+      "Backend Development",
+      "Microservices"
+    ],
+    "computer networks": [
+      "Network Programming",
+      "Distributed Systems",
+      "Backend Development"
+    ],
+    "network programming": [
+      "Distributed Systems",
+      "Backend Development"
+    ],
+    "tcp/ip": [
+      "Computer Networks",
+      "Distributed Systems",
+      "Network Programming"
+    ],
+    "websocket": [
+      "Real-Time Systems",
+      "Backend Development",
+      "API Development"
+    ],
+    "microservices": [
+      "Distributed Systems",
+      "Cloud Architecture",
+      "Container Orchestration"
+    ],
+    "distributed systems": [
+      "System Design",
+      "Scalability",
+      "Load Balancing"
+    ],
+    "docker": [
+      "Container Orchestration",
+      "Kubernetes"
+    ],
+    "kubernetes": [
+      "Container Orchestration",
+      "Cloud Architecture",
+      "DevOps"
+    ],
+    "terraform": [
+      "Infrastructure as Code",
+      "DevOps",
+      "Cloud Architecture"
+    ],
+    "ansible": [
+      "Configuration Management",
+      "DevOps",
+      "Infrastructure as Code"
+    ],
+    "jenkins": [
+      "CI/CD",
+      "Continuous Integration",
+      "Continuous Deployment"
+    ],
+    "github actions": [
+      "CI/CD",
+      "Continuous Integration",
+      "DevOps"
+    ],
+    "gitlab ci": [
+      "CI/CD",
+      "Continuous Integration",
+      "DevOps"
+    ],
+    "aws": [
+      "Cloud Computing",
+      "Cloud Architecture",
+      "DevOps"
+    ],
+    "azure": [
+      "Cloud Computing",
+      "Cloud Architecture",
+      "DevOps"
+    ],
+    "gcp": [
+      "Cloud Computing",
+      "Cloud Architecture",
+      "DevOps"
+    ],
+    "google cloud": [
+      "Cloud Computing",
+      "Cloud Architecture",
+      "DevOps"
+    ],
+    "lambda": [
+      "Serverless",
+      "AWS",
+      "Cloud Computing"
+    ],
+    "airflow": [
+      "Data Engineering",
+      "ETL",
+      "Workflow Optimization"
+    ],
+    "apache spark": [
+      "Big Data",
+      "Data Engineering",
+      "Distributed Systems"
+    ],
+    "hadoop": [
+      "Big Data",
+      "Data Engineering",
+      "Distributed Systems"
+    ],
+    "kafka": [
+      "Event Streaming",
+      "Distributed Systems",
+      "Real-Time Systems"
+    ],
+    "rabbitmq": [
+      "Message Queues",
+      "Distributed Systems",
+      "Backend Development"
+    ],
+    "elasticsearch": [
+      "Data Modeling",
+      "Analytics",
+      "Database Optimization"
+    ],
+    "prometheus": [
+      "Monitoring",
+      "DevOps",
+      "Performance Tuning"
+    ],
+    "grafana": [
+      "Monitoring",
+      "Analytics",
+      "DevOps"
+    ],
+    "linux": [
+      "DevOps",
+      "Configuration Management",
+      "Shell Scripting"
+    ],
+    "bash": [
+      "Shell Scripting",
+      "DevOps",
+      "Configuration Management"
+    ],
+    "powershell": [
+      "Shell Scripting",
+      "Configuration Management",
+      "Windows Server"
+    ],
+    "machine learning": [
+      "MLOps",
+      "Data Engineering"
+    ],
+    "deep learning": [
+      "Machine Learning",
+      "Neural Networks",
+      "MLOps"
+    ],
+    "tensorflow": [
+      "Deep Learning",
+      "Machine Learning",
+      "MLOps"
+    ],
+    "pytorch": [
+      "Deep Learning",
+      "Machine Learning",
+      "MLOps"
+    ],
+    "scikit-learn": [
+      "Machine Learning",
+      "Data Science",
+      "Statistical Analysis"
+    ],
+    "nlp": [
+      "Natural Language Processing",
+      "Machine Learning",
+      "Deep Learning"
+    ],
+    "natural language processing": [
+      "Machine Learning",
+      "Deep Learning",
+      "Data Science"
+    ],
+    "computer vision": [
+      "Deep Learning",
+      "Machine Learning",
+      "Image Processing"
+    ],
+    "pandas": [
+      "Data Analysis",
+      "Data Science",
+      "Python"
+    ],
+    "numpy": [
+      "Data Analysis",
+      "Data Science",
+      "Statistical Analysis"
+    ],
+    "matplotlib": [
+      "Data Visualization",
+      "Analytics",
+      "Data Science"
+    ],
+    "tableau": [
+      "Data Visualization",
+      "Business Intelligence",
+      "Analytics"
+    ],
+    "power bi": [
+      "Data Visualization",
+      "Business Intelligence",
+      "Analytics"
+    ],
+    "pytest": [
+      "Unit Testing",
+      "Test Automation",
+      "Software Testing"
+    ],
+    "jest": [
+      "Unit Testing",
+      "Test Automation",
+      "Software Testing"
+    ],
+    "selenium": [
+      "Test Automation",
+      "System Testing",
+      "Quality Assurance"
+    ],
+    "cypress": [
+      "Test Automation",
+      "Frontend Development",
+      "Software Testing"
+    ],
+    "oauth": [
+      "Authentication",
+      "Authorization",
+      "Application Security"
+    ],
+    "jwt": [
+      "Authentication",
+      "Authorization",
+      "Application Security"
+    ],
+    "cybersecurity": [
+      "Network Security",
+      "Application Security",
+      "Information Security"
+    ],
+    "penetration testing": [
+      "Ethical Hacking",
+      "Vulnerability Assessment",
+      "Application Security"
+    ],
+    "react native": [
+      "Mobile Development",
+      "React",
+      "Cross-Platform Development"
+    ],
+    "flutter": [
+      "Mobile Development",
+      "Cross-Platform Development",
+      "Mobile UI/UX"
+    ],
+    "android development": [
+      "Mobile Development",
+      "Kotlin",
+      "Java"
+    ],
+    "ios development": [
+      "Mobile Development",
+      "Swift",
+      "Mobile UI/UX"
+    ],
+    "unity": [
+      "Game Development",
+      "3D Modeling",
+      "Game AI"
+    ],
+    "unreal engine": [
+      "Game Development",
+      "3D Modeling",
+      "Game Physics"
+    ],
+    "blockchain": [
+      "Distributed Ledger",
+      "Cryptography",
+      "Smart Contracts"
+    ],
+    "ethereum": [
+      "Blockchain",
+      "Smart Contracts",
+      "Solidity"
+    ],
+    "solidity": [
+      "Smart Contracts",
+      "Ethereum",
+      "Blockchain"
+    ],
+    "git": [
+      "Version Control",
+      "Git Workflow",
+      "Code Review"
+    ],
+    "agile methodologies": [
+      "Scrum",
+      "Kanban",
+      "Project Management"
+    ],
+    "scrum": [
+      "Agile Methodologies",
+      "Project Management",
+      "Team Collaboration"
+    ],
+    "project management": [
+      "Stakeholder Management",
+      "Risk Management",
+      "Strategic Planning"
+    ],
+    "communication": [
+      "Stakeholder Communication",
+      "Team Collaboration",
+      "Presentation Skills"
+    ],
+    "leadership": [
+      "Team Leadership",
+      "Mentoring",
+      "Stakeholder Management"
+    ],
+    "problem solving": [
+      "Analytical Thinking",
+      "Critical Thinking",
+      "Troubleshooting"
+    ],
+    "machine learning": [
+      "MLOps",
+      "Data Engineering"
+    ]
+  },
+  "combination_rules": [
+    {
+      "requires": [
+        "computer networks",
+        "java"
+      ],
+      "infer": [
+        "Python",
+        "Backend Development",
+        "Distributed Systems"
+      ]
+    },
+    {
+      "requires": [
+        "python",
+        "machine learning"
+      ],
+      "infer": [
+        "MLOps",
+        "Data Engineering"
+      ]
+    },
+    {
+      "requires": [
+        "react",
+        "node.js"
+      ],
+      "infer": [
+        "Full Stack Development",
+        "Web Development",
+        "API Development"
+      ]
+    },
+    {
+      "requires": [
+        "react.js",
+        "typescript"
+      ],
+      "infer": [
+        "Frontend Development",
+        "Single Page Applications",
+        "Responsive Design"
+      ]
+    },
+    {
+      "requires": [
+        "javascript",
+        "node.js"
+      ],
+      "infer": [
+        "Backend Development",
+        "Web Development",
+        "API Development"
+      ]
+    },
+    {
+      "requires": [
+        "java",
+        "spring boot"
+      ],
+      "infer": [
+        "Microservices",
+        "REST API",
+        "Backend Development"
+      ]
+    },
+    {
+      "requires": [
+        "python",
+        "django"
+      ],
+      "infer": [
+        "Backend Development",
+        "REST API",
+        "Web Development"
+      ]
+    },
+    {
+      "requires": [
+        "python",
+        "fastapi"
+      ],
+      "infer": [
+        "API Development",
+        "Backend Development",
+        "Microservices"
+      ]
+    },
+    {
+      "requires": [
+        "sql",
+        "postgresql"
+      ],
+      "infer": [
+        "Database Design",
+        "Database Optimization",
+        "ETL"
+      ]
+    },
+    {
+      "requires": [
+        "mongodb",
+        "redis"
+      ],
+      "infer": [
+        "NoSQL",
+        "Caching",
+        "Scalability"
+      ]
+    },
+    {
+      "requires": [
+        "docker",
+        "kubernetes"
+      ],
+      "infer": [
+        "Container Orchestration",
+        "DevOps",
+        "Microservices"
+      ]
+    },
+    {
+      "requires": [
+        "terraform",
+        "aws"
+      ],
+      "infer": [
+        "Infrastructure as Code",
+        "Cloud Architecture",
+        "DevOps"
+      ]
+    },
+    {
+      "requires": [
+        "ansible",
+        "linux"
+      ],
+      "infer": [
+        "Configuration Management",
+        "Shell Scripting",
+        "DevOps"
+      ]
+    },
+    {
+      "requires": [
+        "jenkins",
+        "docker"
+      ],
+      "infer": [
+        "CI/CD",
+        "Continuous Deployment",
+        "DevOps"
+      ]
+    },
+    {
+      "requires": [
+        "github actions",
+        "pytest"
+      ],
+      "infer": [
+        "CI/CD",
+        "Continuous Integration",
+        "Test Automation"
+      ]
+    },
+    {
+      "requires": [
+        "aws",
+        "kubernetes"
+      ],
+      "infer": [
+        "Cloud Architecture",
+        "Container Orchestration",
+        "Scalability"
+      ]
+    },
+    {
+      "requires": [
+        "azure",
+        "terraform"
+      ],
+      "infer": [
+        "Cloud Architecture",
+        "Infrastructure as Code",
+        "DevOps"
+      ]
+    },
+    {
+      "requires": [
+        "gcp",
+        "kubernetes"
+      ],
+      "infer": [
+        "Cloud Architecture",
+        "Container Orchestration",
+        "Scalability"
+      ]
+    },
+    {
+      "requires": [
+        "apache spark",
+        "hadoop"
+      ],
+      "infer": [
+        "Big Data",
+        "Data Engineering",
+        "Distributed Systems"
+      ]
+    },
+    {
+      "requires": [
+        "airflow",
+        "python"
+      ],
+      "infer": [
+        "Data Engineering",
+        "ETL",
+        "Workflow Optimization"
+      ]
+    },
+    {
+      "requires": [
+        "pandas",
+        "numpy"
+      ],
+      "infer": [
+        "Data Analysis",
+        "Data Science",
+        "Statistical Analysis"
+      ]
+    },
+    {
+      "requires": [
+        "scikit-learn",
+        "pandas"
+      ],
+      "infer": [
+        "Machine Learning",
+        "Data Science",
+        "Predictive Modeling"
+      ]
+    },
+    {
+      "requires": [
+        "tensorflow",
+        "pytorch"
+      ],
+      "infer": [
+        "Deep Learning",
+        "Neural Networks",
+        "MLOps"
+      ]
+    },
+    {
+      "requires": [
+        "natural language processing",
+        "transformers"
+      ],
+      "infer": [
+        "Machine Learning",
+        "Deep Learning",
+        "Data Science"
+      ]
+    },
+    {
+      "requires": [
+        "computer vision",
+        "opencv"
+      ],
+      "infer": [
+        "Deep Learning",
+        "Image Processing",
+        "Machine Learning"
+      ]
+    },
+    {
+      "requires": [
+        "kafka",
+        "microservices"
+      ],
+      "infer": [
+        "Event Streaming",
+        "Distributed Systems",
+        "Scalability"
+      ]
+    },
+    {
+      "requires": [
+        "rabbitmq",
+        "node.js"
+      ],
+      "infer": [
+        "Message Queues",
+        "Distributed Systems",
+        "Backend Development"
+      ]
+    },
+    {
+      "requires": [
+        "elasticsearch",
+        "kibana"
+      ],
+      "infer": [
+        "Analytics",
+        "Monitoring",
+        "Data Visualization"
+      ]
+    },
+    {
+      "requires": [
+        "prometheus",
+        "grafana"
+      ],
+      "infer": [
+        "Monitoring",
+        "DevOps",
+        "Performance Tuning"
+      ]
+    },
+    {
+      "requires": [
+        "oauth",
+        "jwt"
+      ],
+      "infer": [
+        "Authentication",
+        "Authorization",
+        "Application Security"
+      ]
+    },
+    {
+      "requires": [
+        "cybersecurity",
+        "network security"
+      ],
+      "infer": [
+        "Information Security",
+        "Vulnerability Assessment",
+        "Security Compliance"
+      ]
+    },
+    {
+      "requires": [
+        "pytest",
+        "jenkins"
+      ],
+      "infer": [
+        "Test Automation",
+        "Continuous Integration",
+        "Quality Assurance"
+      ]
+    },
+    {
+      "requires": [
+        "jest",
+        "cypress"
+      ],
+      "infer": [
+        "Frontend Development",
+        "Test Automation",
+        "Quality Assurance"
+      ]
+    },
+    {
+      "requires": [
+        "react native",
+        "javascript"
+      ],
+      "infer": [
+        "Mobile Development",
+        "Cross-Platform Development",
+        "React"
+      ]
+    },
+    {
+      "requires": [
+        "flutter",
+        "dart"
+      ],
+      "infer": [
+        "Mobile Development",
+        "Cross-Platform Development",
+        "Mobile UI/UX"
+      ]
+    },
+    {
+      "requires": [
+        "android development",
+        "kotlin"
+      ],
+      "infer": [
+        "Mobile Development",
+        "Cross-Platform Development",
+        "API Development"
+      ]
+    },
+    {
+      "requires": [
+        "ios development",
+        "swift"
+      ],
+      "infer": [
+        "Mobile Development",
+        "Mobile UI/UX",
+        "API Development"
+      ]
+    },
+    {
+      "requires": [
+        "blockchain",
+        "solidity"
+      ],
+      "infer": [
+        "Smart Contracts",
+        "Ethereum",
+        "Cryptography"
+      ]
+    },
+    {
+      "requires": [
+        "git",
+        "code review"
+      ],
+      "infer": [
+        "Version Control",
+        "Git Workflow",
+        "Clean Code"
+      ]
+    },
+    {
+      "requires": [
+        "agile methodologies",
+        "scrum"
+      ],
+      "infer": [
+        "Project Management",
+        "Team Collaboration",
+        "Stakeholder Management"
+      ]
+    },
+    {
+      "requires": [
+        "leadership",
+        "communication"
+      ],
+      "infer": [
+        "Team Leadership",
+        "Stakeholder Communication",
+        "Mentoring"
+      ]
+    }
+  ]
+}
